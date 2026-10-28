@@ -1,0 +1,1 @@
+export const MAX_ACCOUNTS_PER_FOLDER = 8;

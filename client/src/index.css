@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-gray-50 text-gray-900 antialiased; }
+.scroll-thin::-webkit-scrollbar { width: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { @apply rounded bg-gray-300; }
+
+.compose-body { font-size: 14px; line-height: 1.6; outline: none; overflow-wrap: anywhere; }
+.compose-body p { margin: 0 0 0.9em; }
+.compose-body blockquote { margin: 12px 0 0; padding-left: 14px; border-left: 3px solid #d1d5db; color: #444; }
+.compose-body ul { list-style: disc; padding-left: 1.5em; }
+.compose-body ol { list-style: decimal; padding-left: 1.5em; }
+.compose-body a { color: #2563eb; text-decoration: underline; }
+.compose-body img { max-width: 100%; height: auto; }
+.compose-body table { max-width: 100%; }

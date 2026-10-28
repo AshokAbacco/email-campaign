@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Provider {
+  GMAIL
+  GSUITE
+  YAHOO
+  IMAP
+}
+
+enum AccountStatus {
+  ACTIVE
+  NEEDS_REAUTH
+  ERROR
+}
+
+enum FolderType {
+  INBOX
+  SENT
+  DRAFTS
+  ARCHIVE
+  SPAM
+  TRASH
+  OTHER
+}
+
+enum SyncStatus {
+  IDLE
+  SYNCING
+  ERROR
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String
+  passwordHash   String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       EmailAccount[]
+  accountFolders AccountFolder[]
+  campaigns      Campaign[]
+}
+
+model EmailAccount {
+  id               String            @id @default(cuid())
+  userId           String
+  provider         Provider
+  displayName      String
+  email            String
+  imapHost         String?
+  imapPort         Int?
+  imapSecure       Boolean           @default(true)
+  smtpHost         String?
+  smtpPort         Int?
+  smtpSecure       Boolean           @default(true)
+  username         String?
+  // AES-256-GCM encrypted JSON: { password } or { refreshToken, accessToken, expiresAt }
+  encryptedSecret  String            @db.Text
+  status           AccountStatus     @default(ACTIVE)
+  lastError        String?
+  lastSyncAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folders          EmailFolder[]
+  messages         EmailMessage[]
+  syncStates       EmailSyncState[]
+  accountFolderId  String?
+  accountFolder    AccountFolder?    @relation(fields: [accountFolderId], references: [id], onDelete: SetNull)
+  campaignAccounts CampaignAccount[]
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@index([accountFolderId])
+}
+
+model AccountFolder {
+  id        String         @id @default(cuid())
+  userId    String
+  name      String
+  color     String         @default("emerald")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts  EmailAccount[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model EmailFolder {
+  id         String           @id @default(cuid())
+  accountId  String
+  name       String
+  path       String
+  type       FolderType
+  createdAt  DateTime         @default(now())
+  account    EmailAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  messages   EmailMessage[]
+  syncStates EmailSyncState[]
+
+  @@unique([accountId, path])
+  @@index([accountId, type])
+}
+
+model EmailMessage {
+  id              String            @id @default(cuid())
+  accountId       String
+  folderId        String
+  folderType      FolderType
+  remoteId        String
+  messageIdHeader String?
+  threadId        String?
+  fromName        String            @default("")
+  fromEmail       String            @default("")
+  toList          Json              @default("[]")
+  ccList          Json              @default("[]")
+  bccList         Json              @default("[]")
+  subject         String            @default("")
+  snippet         String            @default("")
+  bodyText        String?           @db.Text
+  bodyHtml        String?           @db.Text
+  date            DateTime
+  isRead          Boolean           @default(false)
+  isStarred       Boolean           @default(false)
+  hasAttachments  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  account         EmailAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folder          EmailFolder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  attachments     EmailAttachment[]
+
+  @@unique([accountId, remoteId])
+  @@index([accountId, folderType, date])
+  @@index([folderId, date])
+  @@index([accountId, isRead])
+  @@index([accountId, isStarred])
+}
+
+// Only metadata is stored; file bytes are fetched from the provider on download.
+model EmailAttachment {
+  id        String       @id @default(cuid())
+  messageId String
+  filename  String
+  mimeType  String       @default("application/octet-stream")
+  size      Int          @default(0)
+  remoteId  String
+  contentId String?
+  message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model EmailSyncState {
+  id          String       @id @default(cuid())
+  accountId   String
+  folderId    String
+  cursor      String? // Gmail: next page token for backfill ("DONE" when exhausted)
+  uidValidity String? // IMAP
+  firstUid    Int? // IMAP: lowest synced UID (backfill boundary)
+  lastUid     Int? // IMAP: highest synced UID (incremental boundary)
+  status      SyncStatus   @default(IDLE)
+  error       String?
+  lastSyncAt  DateTime?
+  account     EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folder      EmailFolder  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, folderId])
+}
+
+enum CampaignStatus {
+  SCHEDULED
+  SENDING
+  COMPLETED
+}
+
+enum RecipientStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Campaign {
+  id           String              @id @default(cuid())
+  userId       String
+  name         String
+  followUpStep Int                 @default(0) // 0 = original campaign, 1-4 = follow-ups
+  parentId     String?
+  status       CampaignStatus      @default(SENDING)
+  subjects     String[]
+  bodyHtml     String              @db.Text
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Campaign?           @relation("FollowUps", fields: [parentId], references: [id], onDelete: Cascade)
+  followUps    Campaign[]          @relation("FollowUps")
+  accounts     CampaignAccount[]
+  recipients   CampaignRecipient[]
+
+  @@index([userId, createdAt])
+  @@index([status, scheduledAt])
+}
+
+model CampaignAccount {
+  id         String       @id @default(cuid())
+  campaignId String
+  accountId  String
+  campaign   Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  account    EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, accountId])
+}
+
+model CampaignRecipient {
+  id         String          @id @default(cuid())
+  campaignId String
+  email      String
+  status     RecipientStatus @default(PENDING)
+  accountId  String? // mailbox that sent it (follow-ups reuse it)
+  subject    String? // subject line actually used
+  error      String?
+  sentAt     DateTime?
+  campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, email])
+  @@index([campaignId, status])
+}
