@@ -6,7 +6,7 @@ export const cleanHtml = (html) => DOMPurify.sanitize(html, { FORBID_TAGS: ['sty
 
 export default function PreviewModal({ html, subject, onClose }) {
   const doc = useMemo(
-    () => `<base target="_blank"><style>body{font-family:Calibri,Arial,sans-serif;font-size:14px;line-height:1.5;margin:16px;color:#111}img{max-width:100%}</style>${cleanHtml(html)}`,
+    () => `<base target="_blank"><style>body{font-family:Calibri,Arial,sans-serif;font-size:14px;line-height:1.6;margin:16px;color:#111827}p{margin:0 0 .9em}img{max-width:100%}</style>${cleanHtml(html)}`,
     [html]
   );
   return (

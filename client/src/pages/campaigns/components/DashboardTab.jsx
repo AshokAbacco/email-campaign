@@ -1,8 +1,10 @@
+// client/src/pages/campaigns/components/DashboardTab.jsx
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Award, Calendar, ChevronDown, Mail, RefreshCw, Search, Send, Target, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { campaignsApi } from '../api/campaigns.api.js';
 import { formatDate } from '../../../utils/format.js';
+import { intervalLabel } from '../utils/sendingRate.js';
 import RecipientsModal from './RecipientsModal.jsx';
 
 const STATUS = {
@@ -154,8 +156,10 @@ export default function DashboardTab({ refreshKey }) {
                       <td colSpan={5} className="px-6 py-4 text-sm">
                         <div className="grid gap-4 sm:grid-cols-3">
                           <div><p className="mb-1 text-xs font-semibold uppercase text-sky-700">From accounts</p>{c.accounts.map((a) => <p key={a} className="truncate">{a}</p>)}</div>
-                          <div><p className="mb-1 text-xs font-semibold uppercase text-sky-700">Subject lines</p>{c.subjects.slice(0, 5).map((s) => <p key={s} className="truncate">{s}</p>)}{c.subjects.length > 5 && <p className="text-gray-400">+{c.subjects.length - 5} more</p>}</div>
+                          <div><p className="mb-1 text-xs font-semibold uppercase text-sky-700">Subject lines</p>{c.subjects.slice(0, 5).map((s) => <p key={s} className="truncate">{s}</p>)}{c.subjects.length > 5 && <p className="text-gray-400">+{c.subjects.length - 5} more</p>}
+                            {c.pitchName && <><p className="mb-1 mt-3 text-xs font-semibold uppercase text-sky-700">Pitch</p><p className="truncate">{c.pitchName}</p></>}</div>
                           <div><p className="mb-1 text-xs font-semibold uppercase text-sky-700">Progress</p><p>Sent: <b>{sent}</b></p><p>Failed: <b>{failed}</b></p><p>Pending: <b>{c.counts.pending}</b></p>
+                            {c.hourlyLimit && <div className="mt-1"><p className="text-xs font-semibold uppercase text-sky-700">Hourly limits</p>{c.accountLimits.map((l) => <p key={l.email} className="truncate"><b>{l.hourlyLimit}/hr</b> <span className="text-gray-500">· 1 every {intervalLabel(l.hourlyLimit)} · {l.email}</span></p>)}</div>}
                             {c.followUpStep > 0 && <p className="mt-1 text-xs text-violet-600">Follow-up #{c.followUpStep}</p>}</div>
                         </div>
                       </td>

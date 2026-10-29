@@ -1,8 +1,12 @@
+// client/src/pages/inbox/components/ComposeModal.jsx
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Paperclip, Send, X } from 'lucide-react';
+import { Loader2, Paperclip, Presentation, Send, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { inboxApi as api } from '../api/inbox.api.js';
 import { formatSize } from '../../../utils/format.js';
+import PitchPicker from '../../pitches/components/PitchPicker.jsx';
+import { cleanHtml } from '../../campaigns/components/PreviewModal.jsx';
+import { toEmailHtml } from '../../../utils/emailHtml.js';
 
 const split = (s) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
 const isEmail = (s) => /^\S+@\S+\.\S+$/.test(s);
@@ -10,7 +14,27 @@ const isEmail = (s) => /^\S+@\S+\.\S+$/.test(s);
 export default function ComposeModal({ init, onClose }) {
   const [f, setF] = useState({ to: init.to || '', cc: '', subject: init.subject || '' });
   const [busy, setBusy] = useState(false);
+  const [pickPitch, setPickPitch] = useState(false);
+  const [pitchId, setPitchId] = useState(null);
   const editor = useRef(null);
+  const pitchBlock = useRef(null);
+
+  // Put the pitch at the top of the message (above any quoted reply); choosing another pitch replaces it
+  const insertPitch = (p) => {
+    setPickPitch(false);
+    if (!p) return setPitchId(null); // clearing keeps the text already in the message
+    const el = editor.current;
+    const block = document.createElement('div');
+    block.setAttribute('data-pitch', p.id);
+    block.innerHTML = cleanHtml(p.bodyHtml);
+    const old = pitchBlock.current && el.contains(pitchBlock.current) ? pitchBlock.current : null;
+    if (old) old.replaceWith(block);
+    else if (el.textContent.trim() || el.querySelector('img')) el.prepend(block);
+    else { el.innerHTML = ''; el.appendChild(block); }
+    pitchBlock.current = block;
+    setPitchId(p.id);
+    el.focus();
+  };
 
   // Fill the editor once with the formatted original message, cursor on top
   useEffect(() => {
@@ -34,6 +58,9 @@ export default function ComposeModal({ init, onClose }) {
     if (bad) return toast.error(`"${bad}" is not a valid email address`);
 
     const body = editor.current;
+    // inserted pitches go out exactly as they look in the editor (bold, spacing)
+    body.querySelectorAll('[data-pitch]').forEach((b) => { b.outerHTML = `<div>${toEmailHtml(b)}</div>`; });
+    pitchBlock.current = null;
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111">${body.innerHTML}</div>`;
     setBusy(true);
     try {
@@ -78,6 +105,14 @@ export default function ComposeModal({ init, onClose }) {
             ))}
           </div>
         )}
+
+        <div className="px-5 pt-3">
+          <button type="button" onClick={() => setPickPitch((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${pickPitch ? 'border-blue-200 bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <Presentation size={14} /> {pitchId ? 'Change pitch' : 'Insert pitch'}
+          </button>
+          {pickPitch && <div className="mt-2"><PitchPicker value={pitchId} onSelect={insertPitch} maxHeight={200} /></div>}
+        </div>
 
         <div
           ref={editor}

@@ -1,10 +1,12 @@
+// client/src/pages/campaigns/components/RichEditor.jsx
 import { useRef } from 'react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Italic, Link2, List, ListOrdered, Strikethrough, Underline } from 'lucide-react';
 
 const FONTS = ['Calibri', 'Arial', 'Georgia', 'Times New Roman', 'Verdana', 'Courier New'];
 const SIZES = [['Small', '2'], ['Normal', '3'], ['Medium', '4'], ['Large', '5'], ['X-Large', '6']];
 
-export default function RichEditor({ editorRef, onChange, footer, minHeight = 260 }) {
+// signature: read-only HTML shown under the text (added automatically when the email is sent)
+export default function RichEditor({ editorRef, onChange, footer, signature, signatureNote, minHeight = 260 }) {
   const saved = useRef(null);
 
   const remember = () => {
@@ -68,6 +70,12 @@ export default function RichEditor({ editorRef, onChange, footer, minHeight = 26
         className="compose-body px-5 py-4"
         style={{ minHeight, fontFamily: 'Calibri, Arial, sans-serif' }}
       />
+      {signature && (
+        <div className="border-t border-dashed px-5 pb-4 pt-2">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Signature · added automatically{signatureNote ? ` · ${signatureNote}` : ''}</p>
+          <div className="compose-body select-none text-gray-700 [&>p]:!mt-0" style={{ fontFamily: 'Calibri, Arial, sans-serif' }} dangerouslySetInnerHTML={{ __html: signature }} />
+        </div>
+      )}
       {footer && <div className="flex items-center justify-between border-t px-4 py-3 text-sm">{footer}</div>}
     </div>
   );

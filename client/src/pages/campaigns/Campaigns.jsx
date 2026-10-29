@@ -20,7 +20,7 @@ export default function Campaigns() {
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-b from-blue-50/70 to-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-8xl px-4 py-6 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-600 text-white shadow"><Mail size={22} /></span>
